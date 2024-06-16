@@ -25,8 +25,8 @@ const help = () => {
 const countBytes = (fileName, isBuf) => {
   let file;
 
-  if(isBuf){
-    file = fileName; 
+  if (isBuf) {
+    file = fileName;
   } else {
     file = readFileSync(fileName);
   }
@@ -36,7 +36,7 @@ const countBytes = (fileName, isBuf) => {
 
 const countLines = async (fileName, isBuf) => {
   let file;
-  if(isBuf){
+  if (isBuf) {
     file = fileName.toString();
   } else {
     file = readFileSync(fileName, "utf8");
@@ -54,7 +54,7 @@ const countLines = async (fileName, isBuf) => {
 
 const countWords = (fileName, isBuf) => {
   let file;
-  if(isBuf){
+  if (isBuf) {
     file = fileName.toString();
   } else {
     file = readFileSync(fileName, "utf8");
@@ -97,18 +97,23 @@ const FLAGS = {
   m: countChars,
 };
 
-const main = () => {
-  if (args.length === 0) {
-    const flags = ["l", "w", "c"];
-    const buff = readFileSync("/dev/stdin");
-    flags.forEach((flag) => {
-      FLAGS[flag](buff, true);
-    });
-    console.log(`${out.join(" ")}`.trim());
-  } else if (args.length === 1) {
+const noArgs = () => {
+  const flags = ["l", "w", "c"];
+  const buff = readFileSync("/dev/stdin");
+
+  flags.forEach((flag) => {
+    FLAGS[flag](buff, true);
+  });
+
+  console.log(`${out.join(" ")}`.trim());
+};
+
+const oneArg = () => {
     let arg = args[0];
+
     if (arg.startsWith("-")) {
       let flags = arg.split("").filter((el) => el !== "-");
+
       if (flags.includes("h")) {
         help();
       } else {
@@ -119,21 +124,36 @@ const main = () => {
       }
     } else {
       const flags = ["l", "w", "c"];
+
       flags.forEach((flag) => {
         FLAGS[flag](arg);
       });
+
       console.log(`${out.join(" ")} ${arg}`.trim());
     }
-  } else if (args.length === 2) {
+}
+
+const twoArgs = () => {
+    let file = args.find((el) => !el.startsWith("-"));
     let flags = args
       .find((el) => el.startsWith("-"))
       .split("")
       .filter((el) => el !== "-");
-    let file = args.find((el) => !el.startsWith("-"));
+
     flags.forEach((flag) => {
       FLAGS[flag](file);
     });
+
     console.log(`${out.join(" ")} ${file}`.trim());
+}
+
+const main = () => {
+  if (args.length === 0) {
+    noArgs();
+  } else if (args.length === 1) {
+    oneArg();
+  } else if (args.length === 2) {
+    twoArgs();
   } else {
     throw Error("malformed command");
   }
