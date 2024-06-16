@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const { statSync, readFileSync } = require("node:fs");
+const { readFileSync } = require("node:fs");
 const [, , ...args] = process.argv;
 
 const out = [];
@@ -12,27 +12,53 @@ const help = () => {
   console.log("-l: count lines in file");
   console.log("-w: count words in file");
   console.log("-m: count characters in file");
+  console.log("");
+  console.log('combine flags under a single "-"');
+  console.log(
+    'eg: "node_wc -wl filename.txt" will output lines and words from filename.txt',
+  );
+  console.log("");
+  console.log("omit filename to read stdin");
+  console.log('eg: "node_wc -wl" will output lines and words from stdin');
 };
 
-const countBytes = (fileName) => {
-  const stats = statSync(fileName);
-  out[3] = stats.size;
+const countBytes = (fileName, isBuf) => {
+  let file;
+
+  if(isBuf){
+    file = fileName; 
+  } else {
+    file = readFileSync(fileName);
+  }
+
+  out[3] = Buffer.byteLength(file);
 };
 
-const countLines = async (fileName) => {
-  const file = readFileSync(fileName, "utf8");
+const countLines = async (fileName, isBuf) => {
+  let file;
+  if(isBuf){
+    file = fileName.toString();
+  } else {
+    file = readFileSync(fileName, "utf8");
+  }
+
   let count = 0;
-  for(let i = 0; i < file.length; i++){
+  for (let i = 0; i < file.length; i++) {
     let char = file[i];
-    if(char === '\n'){
+    if (char === "\n") {
       count++;
-    };
+    }
   }
   out[1] = count;
 };
 
-const countWords = (fileName) => {
-  const file = readFileSync(fileName, "utf8");
+const countWords = (fileName, isBuf) => {
+  let file;
+  if(isBuf){
+    file = fileName.toString();
+  } else {
+    file = readFileSync(fileName, "utf8");
+  }
   let whitespace = true;
   let count = 0;
   for (let i = 0; i < file.length; i++) {
@@ -54,42 +80,63 @@ const countWords = (fileName) => {
   out[2] = count;
 };
 
-const countChars = (fileName) => {
-  const file = readFileSync(fileName, "utf8");
-  let count = file.length;
-  out[0] = count;
+const countChars = (fileName, isBuf) => {
+  if (isBuf) {
+    out[0] = fileName.toString().length;
+  } else {
+    const file = readFileSync(fileName, "utf8");
+    let count = file.length;
+    out[0] = count;
+  }
 };
 
 const FLAGS = {
-  "-h": help,
-  "-c": countBytes,
-  "-l": countLines,
-  "-w": countWords,
-  "-m": countChars,
-  all: (file) => {
-    countLines(file);
-    countWords(file);
-    countBytes(file);
-  },
+  c: countBytes,
+  l: countLines,
+  w: countWords,
+  m: countChars,
 };
 
 const main = () => {
-  if(args[0] === '-h'){
-    FLAGS['-h']();
-    return;
+  if (args.length === 0) {
+    const flags = ["l", "w", "c"];
+    const buff = readFileSync("/dev/stdin");
+    flags.forEach((flag) => {
+      FLAGS[flag](buff, true);
+    });
+    console.log(`${out.join(" ")}`.trim());
+  } else if (args.length === 1) {
+    let arg = args[0];
+    if (arg.startsWith("-")) {
+      let flags = arg.split("").filter((el) => el !== "-");
+      if (flags.includes("h")) {
+        help();
+      } else {
+        flags.forEach((flag) => {
+          FLAGS[flag]("/dev/stdin");
+        });
+        console.log(`${out.join(" ")}`.trim());
+      }
+    } else {
+      const flags = ["l", "w", "c"];
+      flags.forEach((flag) => {
+        FLAGS[flag](arg);
+      });
+      console.log(`${out.join(" ")} ${arg}`.trim());
+    }
+  } else if (args.length === 2) {
+    let flags = args
+      .find((el) => el.startsWith("-"))
+      .split("")
+      .filter((el) => el !== "-");
+    let file = args.find((el) => !el.startsWith("-"));
+    flags.forEach((flag) => {
+      FLAGS[flag](file);
+    });
+    console.log(`${out.join(" ")} ${file}`.trim());
+  } else {
+    throw Error("malformed command");
   }
-
-  if (args.length === 2) {
-    const flag = args[0];
-    const file = args[1];
-    FLAGS[flag](file);
-    console.log(out.join(" "), file);
-    return;
-  }
-
-  const file = args[0];
-  FLAGS.all(file);
-  console.log(out.join(" "), file);
 };
 
 main();
