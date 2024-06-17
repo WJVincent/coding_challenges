@@ -2,7 +2,7 @@
 import sys
 import fileinput
 args = sys.argv[1:]
-out = []
+out = [0,0,0,0]
 
 def help():
   print("python wc util");
@@ -20,17 +20,30 @@ def help():
   print('eg: "py_wc -wl" will output lines and words from stdin');
 
 
-def count_bytes(file):
-  pass
-
 def count_lines(file):
-  pass
+  count = 0
+  for char in file.decode():
+    if char == '\n':
+      count += 1
+  out[1] = count
+
+def count_bytes(file):
+  out[3] = len(file)
 
 def count_words(file):
-  pass
+  is_whitespace = True 
+  count = 0
+  for char in file.decode():
+    if char == ' ' or char == '\n' or char == '\r' or ord(char) == 9:
+      is_whitespace = True
+    elif char != ' ' and is_whitespace and char != '\n':
+      is_whitespace = False
+      count += 1
+  out[2] = count
+
 
 def count_chars(file):
-  pass
+  out[0] = len(file.decode())
 
 FLAGS = {
   'c': count_bytes,
@@ -40,17 +53,55 @@ FLAGS = {
 }
 
 def no_args():
-  file = fileinput.input()
+  file = sys.stdin.buffer.read() # byte object 
   flags = ['l', 'w', 'c']
   for flag in flags:
     FLAGS[flag](file)
 
+  lines = out[1]
+  words = out[2]
+  byte_num = out[3]
+  print(f'{lines} {words} {byte_num}')
+
 
 def one_arg():
-  pass
+  arg = args[0]
+  if arg.startswith('-'):
+    flags = list(filter(lambda x: x != '-', [*arg]))
+    if 'h' in flags:
+      help()
+      return
+    else:
+      file = sys.stdin.buffer.read() # byte object 
+      for flag in flags:
+        FLAGS[flag](file)
+
+      outStr = " ".join(str(x) for x in out if x != 0)
+      print(f"{outStr}")
+  else:
+    file = open(arg, 'rb').read()
+    for flag in ['l', 'w', 'c']:
+      FLAGS[flag](file)
+    outStr = " ".join(str(x) for x in out if x != 0)
+    print(f"{outStr} {arg}")
 
 def two_args():
-  pass
+  flags = next((x for x in args if x.startswith('-')), None)
+  fileName = next((x for x in args if not x.startswith('-')), None) 
+  file = None
+  if fileName: 
+    file = open(fileName, 'rb').read()
+  
+  if flags:
+    split_flags = [*flags]
+    flags = list(filter(lambda x: x != '-', split_flags))
+    if file: 
+      for flag in flags:
+        FLAGS[flag](file)
+
+    outStr = " ".join(str(x) for x in out if x != 0)
+    print(f"{outStr} {fileName}")
+
 
 def main():
   if len(args) == 0:
